@@ -4,16 +4,10 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Please set up your Supabase environment variables in .env file');
-  console.log('Required variables:');
-  console.log('VITE_SUPABASE_URL=your-project-url');
-  console.log('VITE_SUPABASE_ANON_KEY=your-anon-key');
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
 
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder-url.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Initialize Supabase tables if they don't exist
 async function initializeDatabase() {
@@ -22,13 +16,14 @@ async function initializeDatabase() {
   if (profilesError?.code === '42P01') {
     await supabase.query(`
       create table if not exists profiles (
-        id uuid references auth.users on delete cascade,
+        id uuid references auth.users on delete cascade primary key,
         username text unique,
         full_name text,
-        avatar_url text,
-        website text,
-        updated_at timestamp with time zone,
-        primary key (id)
+        email text unique not null,
+        phone text,
+        address text,
+        created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+        updated_at timestamp with time zone default timezone('utc'::text, now()) not null
       );
     `);
   }
@@ -45,15 +40,6 @@ async function initializeDatabase() {
         amount decimal(12,2) not null
       );
     `);
-  }
-
-  const { error: storageError } = await supabase.storage.getBucket('avatars');
-  
-  if (storageError) {
-    await supabase.storage.createBucket('avatars', {
-      public: true,
-      fileSizeLimit: 1024 * 1024 * 2 // 2MB
-    });
   }
 }
 
